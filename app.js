@@ -1843,14 +1843,16 @@ function initSocialMarquee() {
   if (!track || !outer) return;
 
   const initialContent = track.innerHTML;
-  // Use a fresh container to avoid duplicate IDs or multiple clones on re-init
-  track.innerHTML = initialContent + initialContent;
+  // Use 3 sets for perfect circular scroll [Set 1] [Set 2] [Set 3]
+  track.innerHTML = initialContent + initialContent + initialContent;
 
   let speed = 0.8;
   let isInteracting = false;
   let pauseTimer = null;
-  const setWidth = track.scrollWidth / 2;
 
+  const setWidth = track.scrollWidth / 3;
+  // Start in the middle set
+  outer.scrollLeft = setWidth;
 
   // Manual interaction events
   const startInteract = () => {
@@ -1858,17 +1860,17 @@ function initSocialMarquee() {
     if (pauseTimer) clearTimeout(pauseTimer);
   };
   const endInteract = () => {
-    // Resume after a delay
     if (pauseTimer) clearTimeout(pauseTimer);
     pauseTimer = setTimeout(() => { isInteracting = false; }, 2500);
   };
 
   outer.addEventListener('mousedown', startInteract);
   outer.addEventListener('touchstart', startInteract, { passive: true });
+  outer.addEventListener('mouseenter', startInteract);
   window.addEventListener('mouseup', endInteract);
   window.addEventListener('touchend', endInteract);
+  outer.addEventListener('mouseleave', endInteract);
 
-  // Track manual scrolls ONLY when already interacting
   outer.addEventListener('scroll', () => {
     if (isInteracting) {
       if (pauseTimer) clearTimeout(pauseTimer);
@@ -1876,20 +1878,20 @@ function initSocialMarquee() {
     }
   }, { passive: true });
 
-
   const cards = track.querySelectorAll('.social-card');
 
   function step() {
     if (!isInteracting) {
       outer.scrollLeft += speed;
-      // Infinite loop reset
-      if (outer.scrollLeft >= setWidth) {
-        outer.scrollLeft = 0;
-      }
     }
 
+    // Truly circular loop: always stay within the middle set [setWidth, setWidth*2]
+    if (outer.scrollLeft >= setWidth * 2) {
+      outer.scrollLeft -= setWidth;
+    } else if (outer.scrollLeft <= 0) {
+      outer.scrollLeft += setWidth;
+    }
 
-    // Proximity highlights
     const outerRect = outer.getBoundingClientRect();
     const centerX = outerRect.left + outerRect.width / 2;
 
@@ -1897,7 +1899,6 @@ function initSocialMarquee() {
       const cardRect = card.getBoundingClientRect();
       const cardCenter = cardRect.left + cardRect.width / 2;
       const dist = Math.abs(centerX - cardCenter);
-      // Higher proximity = stronger highlight
       const proximity = Math.max(0, 1 - (dist / (outerRect.width / 1.5)));
       card.style.setProperty('--proximity', proximity.toFixed(3));
 
